@@ -1,6 +1,6 @@
 # 5stack.gg
 
-V-Match is a Valorant matchmaking MVP for connecting players based on rank, mood, and agent priority. It supports Google sign-in, user profile setup, party creation, party search, join requests, invites, and live party management.
+5stack.gg is a Valorant matchmaking MVP for connecting players based on rank, mood, and agent priority. It supports Google sign-in, user profile setup, party creation, party search, join requests, invites, and live party management.
 
 ## Tech Stack
 
