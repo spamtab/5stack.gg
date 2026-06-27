@@ -15,6 +15,7 @@ backend/.env
 backend/.env.*
 frontend/.env
 frontend/.env.*
+!frontend/.env.production
 *.pem
 *.key
 *.p12
