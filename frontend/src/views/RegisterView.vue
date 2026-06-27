@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useAuthStore } from '../stores/authStore'
 import { useRouter } from 'vue-router'
+import { apiUrl } from '../config/api'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -23,7 +24,7 @@ const handleRegister = async () => {
     const token = await authStore.getToken()
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch('http://localhost:8000/api/users', {
+    const response = await fetch(apiUrl('/api/users'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

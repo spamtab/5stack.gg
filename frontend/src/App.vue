@@ -4,6 +4,7 @@ import { RouterView, useRouter } from 'vue-router'
 import { useAuthStore } from './stores/authStore'
 import { auth } from './firebase'
 import { onAuthStateChanged } from 'firebase/auth'
+import { apiUrl } from './config/api'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -24,7 +25,7 @@ onMounted(() => {
       }
 
       try {
-        const response = await fetch('http://localhost:8000/api/users/me', {
+        const response = await fetch(apiUrl('/api/users/me'), {
           headers: { Authorization: `Bearer ${token}` },
         })
 

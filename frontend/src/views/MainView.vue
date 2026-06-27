@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, onMounted, watch } from 'vue'
 import { useAuthStore } from '../stores/authStore'
 import { useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
+import { apiUrl } from '../config/api'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -107,7 +108,7 @@ const fetchUserData = async () => {
   try {
     const token = await authStore.getToken()
     if (!token) return
-    const response = await fetch('http://localhost:8000/api/users/me', {
+    const response = await fetch(apiUrl('/api/users/me'), {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (response.ok) {
@@ -158,7 +159,7 @@ const savePreferences = async () => {
   try {
     const token = await authStore.getToken()
     if (!token) return
-    const response = await fetch('http://localhost:8000/api/users', {
+    const response = await fetch(apiUrl('/api/users'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -183,7 +184,7 @@ const setLookingForParty = async (lookingForParty: boolean) => {
   try {
     const token = await authStore.getToken()
     if (!token) return
-    const response = await fetch('http://localhost:8000/api/users', {
+    const response = await fetch(apiUrl('/api/users'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -219,7 +220,7 @@ const saveUsername = async () => {
   try {
     const token = await authStore.getToken()
     if (!token) return
-    const response = await fetch('http://localhost:8000/api/users', {
+    const response = await fetch(apiUrl('/api/users'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -251,7 +252,7 @@ const toggleCreateParty = async () => {
   try {
     const token = await authStore.getToken()
     if (token) {
-      const response = await fetch('http://localhost:8000/api/parties', {
+      const response = await fetch(apiUrl('/api/parties'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -293,7 +294,7 @@ const fetchIndividualPlayers = async () => {
   try {
     const token = await authStore.getToken()
     if (!token) return
-    const response = await fetch('http://localhost:8000/api/users', {
+    const response = await fetch(apiUrl('/api/users'), {
       headers: { Authorization: `Bearer ${token}` },
     })
     const players = await response.json()
@@ -309,7 +310,7 @@ const leaveCurrentParty = async () => {
   try {
     const token = await authStore.getToken()
     if (!token) return
-    const response = await fetch('http://localhost:8000/api/parties/leave', {
+    const response = await fetch(apiUrl('/api/parties/leave'), {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -327,7 +328,7 @@ const removePartyMember = async (memberId: string) => {
   try {
     const token = await authStore.getToken()
     if (!token) return
-    const response = await fetch(`http://localhost:8000/api/parties/members/${memberId}`, {
+    const response = await fetch(apiUrl(`/api/parties/members/${memberId}`), {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -344,7 +345,7 @@ const fetchParties = async () => {
   try {
     const token = await authStore.getToken()
     if (!token) return
-    const response = await fetch('http://localhost:8000/api/parties', {
+    const response = await fetch(apiUrl('/api/parties'), {
       headers: { Authorization: `Bearer ${token}` },
     })
     partiesList.value = await response.json()
@@ -358,7 +359,7 @@ const fetchMyParty = async () => {
       currentParty.value = null
       return
     }
-    const response = await fetch('http://localhost:8000/api/parties/me', {
+    const response = await fetch(apiUrl('/api/parties/me'), {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (response.ok) {
@@ -376,7 +377,7 @@ const fetchIncomingRequests = async () => {
   try {
     const token = await authStore.getToken()
     if (!token) return
-    const response = await fetch('http://localhost:8000/api/requests/incoming', {
+    const response = await fetch(apiUrl('/api/requests/incoming'), {
       headers: { Authorization: `Bearer ${token}` },
     })
     incomingRequests.value = await response.json()
@@ -387,7 +388,7 @@ const sendJoinRequest = async (party: any) => {
   try {
     const token = await authStore.getToken()
     if (!token) return
-    const response = await fetch('http://localhost:8000/api/requests', {
+    const response = await fetch(apiUrl('/api/requests'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -407,7 +408,7 @@ const sendInviteRequest = async (player: any) => {
   try {
     const token = await authStore.getToken()
     if (!token) return
-    const response = await fetch('http://localhost:8000/api/requests', {
+    const response = await fetch(apiUrl('/api/requests'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -427,7 +428,7 @@ const respondToIncomingRequest = async (request: any, accept: boolean) => {
   try {
     const token = await authStore.getToken()
     if (!token) return
-    const response = await fetch(`http://localhost:8000/api/requests/${request.id}/respond?accept=${accept}`, {
+    const response = await fetch(apiUrl(`/api/requests/${request.id}/respond?accept=${accept}`), {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -447,7 +448,7 @@ const handleLogout = async () => {
   try {
     const token = await authStore.getToken()
     if (token && authStore.backendUser?.party_id) {
-      await fetch('http://localhost:8000/api/parties/disband', {
+      await fetch(apiUrl('/api/parties/disband'), {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })
