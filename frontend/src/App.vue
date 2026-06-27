@@ -67,8 +67,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <div v-if="authStore.loading" class="loading-screen d-flex align-center justify-center h-100">
-    <div class="spinner"></div>
+  <div v-if="authStore.loading" class="loading-screen d-flex align-center justify-center">
+    <div class="loading-content text-center">
+      <div class="spinner loading-spinner"></div>
+      <p class="loading-text">Loading...</p>
+    </div>
   </div>
   <RouterView v-else />
 </template>
@@ -76,5 +79,27 @@ onMounted(() => {
 <style>
 .loading-screen {
   min-height: 100vh;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.loading-spinner {
+  width: 44px;
+  height: 44px;
+  border-width: 3px;
+  border-top-color: var(--riot-red);
+}
+
+.loading-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--text-secondary);
 }
 </style>

@@ -54,10 +54,14 @@ const handleRegister = async () => {
 
 <template>
   <div class="register-container d-flex align-center justify-center">
+    <div class="register-bg"></div>
     <div class="glass-panel register-card animate-fade-in">
+      <div class="register-accent"></div>
+      <p class="register-step">Step 1 of 1</p>
       <h2 class="mb-4">Set Your Riot ID</h2>
-      <p class="text-muted mb-4">You need to set your Valorant username before continuing.</p>
+      <p class="text-muted mb-4 register-desc">You need to set your Valorant username before continuing.</p>
       
+      <label class="field-label">Riot ID</label>
       <div class="input-group d-flex gap-2 mb-4">
         <input 
           v-model="username" 
@@ -77,10 +81,11 @@ const handleRegister = async () => {
       </div>
       
       <button class="btn-primary w-100" @click="handleRegister" :disabled="loading">
+        <span v-if="loading" class="spinner mr-2"></span>
         {{ loading ? 'Saving...' : 'Complete Registration' }}
       </button>
       
-      <p v-if="errorMsg" class="text-danger mt-4 text-center">{{ errorMsg }}</p>
+      <p v-if="errorMsg" class="text-danger mt-4 text-center error-msg">{{ errorMsg }}</p>
     </div>
   </div>
 </template>
@@ -88,22 +93,65 @@ const handleRegister = async () => {
 <style scoped>
 .register-container {
   min-height: 100vh;
-  background-color: var(--dark-base);
+  position: relative;
+  overflow: hidden;
+}
+
+.register-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 80% 20%, rgba(255, 70, 85, 0.12), transparent),
+    radial-gradient(ellipse 50% 30% at 10% 80%, rgba(15, 139, 141, 0.08), transparent);
+  pointer-events: none;
 }
 
 .register-card {
+  position: relative;
   padding: 48px;
   max-width: 480px;
-  width: 100%;
+  width: calc(100% - 32px);
+  border-left: 3px solid var(--riot-red);
+}
+
+.register-accent {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 8px;
+  height: 8px;
+  background: var(--riot-red);
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.register-step {
+  color: var(--riot-red);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-bottom: 8px;
+}
+
+.register-desc {
+  line-height: 1.6;
 }
 
 .hashtag {
-  color: var(--text-secondary);
+  color: var(--riot-red);
   font-size: 1.5rem;
-  font-weight: bold;
+  font-weight: 800;
 }
 
 .tagline-input {
   width: 100px;
+  flex-shrink: 0;
+}
+
+.error-msg {
+  font-size: 0.85rem;
+  padding: 10px;
+  background: var(--riot-red-dim);
+  border-radius: var(--radius-md);
 }
 </style>

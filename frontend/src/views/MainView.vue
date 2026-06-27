@@ -491,51 +491,60 @@ watch(currentMode, async (mode, previousMode) => {
 <template>
   <div class="dashboard">
     <!-- Navbar -->
-    <nav class="navbar d-flex justify-between align-center px-4 py-3 glass-panel m-4">
-      <h2 class="text-danger">5stack.gg</h2>
-      <div class="d-flex align-center gap-3">
-        <div v-if="!isEditingUsername" class="d-flex align-center gap-2">
-          <span class="username">{{ username }}</span>
-          <button class="btn-icon-small" @click="() => {
-            const parts = username.split('#');
-            editUsernameInput = parts[0] || '';
-            editTaglineInput = parts[1] || '';
-            isEditingUsername = true;
-          }">✏️</button>
+    <nav class="navbar glass-panel">
+      <div class="navbar-inner d-flex justify-between align-center">
+        <div class="navbar-brand">
+          <span class="brand-accent"></span>
+          <h2 class="text-danger brand-title">5stack.gg</h2>
         </div>
-        <div v-else class="d-flex align-center gap-2">
-          <input v-model="editUsernameInput" class="input-field" style="width: 120px; padding: 4px;" placeholder="Name">
-          <span class="text-muted">#</span>
-          <input v-model="editTaglineInput" class="input-field" style="width: 60px; padding: 4px;" placeholder="TAG">
-          <button class="btn-primary" style="padding: 4px 12px; font-size: 0.8rem;" @click="saveUsername">Save</button>
-          <button class="btn-secondary" style="padding: 4px 12px; font-size: 0.8rem;" @click="isEditingUsername = false">Cancel</button>
+        <div class="navbar-actions d-flex align-center gap-3">
+          <div v-if="!isEditingUsername" class="profile-chip d-flex align-center gap-2">
+            <span class="profile-avatar">{{ (username.split('#')[0] || '?').charAt(0).toUpperCase() }}</span>
+            <span class="username">{{ username }}</span>
+            <button class="btn-icon-small" title="Edit Riot ID" @click="() => {
+              const parts = username.split('#');
+              editUsernameInput = parts[0] || '';
+              editTaglineInput = parts[1] || '';
+              isEditingUsername = true;
+            }">✎</button>
+          </div>
+          <div v-else class="profile-edit d-flex align-center gap-2">
+            <input v-model="editUsernameInput" class="input-field input-field--compact input-field--name" placeholder="Name">
+            <span class="hashtag-sep">#</span>
+            <input v-model="editTaglineInput" class="input-field input-field--compact input-field--tag" placeholder="TAG">
+            <button class="btn-primary btn-primary--sm" @click="saveUsername">Save</button>
+            <button class="btn-secondary btn-secondary--sm" @click="isEditingUsername = false">Cancel</button>
+          </div>
+          <button class="btn-secondary btn-danger-outline" @click="handleLogout">Logout</button>
         </div>
-        <button class="btn-secondary ml-3" @click="handleLogout">Logout</button>
       </div>
     </nav>
 
-    <div class="container mt-4">
+    <div class="container dashboard-body">
       <!-- Preferences Section -->
-      <div class="glass-panel p-4 mb-4">
-        <h3 class="mb-4">Playstyle Preferences</h3>
+      <div class="glass-panel panel prefs-panel">
+        <div class="section-header">
+          <span class="section-accent"></span>
+          <h3>Playstyle Preferences</h3>
+        </div>
         
         <div class="preferences-grid" :class="{ 'disabled-overlay': currentMode !== 'none' }">
           <div class="pref-item">
-            <label>Rank</label>
+            <label class="field-label">Rank</label>
             <select v-model="selectedRank" class="input-field mt-2" :disabled="currentMode !== 'none'">
               <option v-for="rank in ranks" :key="rank" :value="rank">{{ rank }}</option>
             </select>
           </div>
           
           <div class="pref-item">
-            <label>Mood</label>
+            <label class="field-label">Mood</label>
             <select v-model="selectedMood" class="input-field mt-2" :disabled="currentMode !== 'none'">
               <option v-for="mood in moods" :key="mood" :value="mood">{{ mood }}</option>
             </select>
           </div>
           
           <div class="pref-item agent-priority-section">
-            <label>Agent Priority (Drag to reorder)</label>
+            <label class="field-label">Agent Priority <span class="field-hint">Drag to reorder</span></label>
             <draggable v-model="agentPriority" item-key="agent" class="agent-list mt-2" :disabled="currentMode !== 'none'">
               <template #item="{element}">
                 <div class="agent-badge">{{ element }}</div>
@@ -544,22 +553,24 @@ watch(currentMode, async (mode, previousMode) => {
           </div>
         </div>
 
-        <!-- Save Preferences button (only shown when not in a mode) -->
-        <div v-if="currentMode === 'none'" class="d-flex align-center gap-3 mt-4">
-          <button class="btn-primary" style="min-width:160px" @click="savePreferencesWithFeedback">
+        <div v-if="currentMode === 'none'" class="save-row d-flex align-center gap-3 mt-4">
+          <button class="btn-primary save-btn" @click="savePreferencesWithFeedback">
             {{ prefSaved ? '✓ Saved!' : 'Save Preferences' }}
           </button>
-          <span v-if="prefSaved" class="text-muted" style="font-size:0.85rem">Your rank, mood &amp; agent order have been saved.</span>
+          <span v-if="prefSaved" class="save-hint text-muted">Your rank, mood &amp; agent order have been saved.</span>
         </div>
       </div>
 
       <!-- Action Buttons -->
-      <div class="actions-section d-flex gap-4 mb-4">
-        <div class="action-card glass-panel flex-1 p-4" :class="{ active: currentMode === 'create' }">
-          <h4 class="mb-3">Become a Party Leader</h4>
+      <div class="actions-section d-flex gap-4">
+        <div class="action-card glass-panel flex-1 panel" :class="{ active: currentMode === 'create' }">
+          <div class="action-card-header">
+            <span class="action-icon">◆</span>
+            <h4>Become a Party Leader</h4>
+          </div>
           <input v-if="currentMode === 'none'" v-model="partyCode" type="text" class="input-field mb-3" placeholder="Enter Party Code" required />
           
-          <div class="d-flex align-center justify-between">
+          <div class="d-flex align-center justify-between action-row">
             <button class="btn-primary w-100" @click="toggleCreateParty" :disabled="(currentMode !== 'none' && currentMode !== 'create') || !!currentParty">
               <span v-if="isLoading && currentMode === 'create'" class="spinner mr-2"></span>
               {{ currentParty ? 'Leave or Disband First' : currentMode === 'create' ? 'Looking for Players...' : 'Create a Party' }}
@@ -568,11 +579,14 @@ watch(currentMode, async (mode, previousMode) => {
           </div>
         </div>
 
-        <div class="action-card glass-panel flex-1 p-4" :class="{ active: currentMode === 'search' }">
-          <h4 class="mb-3">Find a Squad</h4>
-          <p class="text-muted mb-3">Browse existing parties looking for members.</p>
+        <div class="action-card glass-panel flex-1 panel" :class="{ active: currentMode === 'search' }">
+          <div class="action-card-header">
+            <span class="action-icon">▣</span>
+            <h4>Find a Squad</h4>
+          </div>
+          <p class="text-muted action-desc">Browse existing parties looking for members.</p>
           
-          <div class="d-flex align-center justify-between">
+          <div class="d-flex align-center justify-between action-row">
             <button class="btn-primary w-100" @click="toggleSearchParty" :disabled="currentMode !== 'none' && currentMode !== 'search'">
               <span v-if="isLoading && currentMode === 'search'" class="spinner mr-2"></span>
               {{ currentMode === 'search' ? 'Searching...' : 'Search for Existing Party' }}
@@ -582,30 +596,39 @@ watch(currentMode, async (mode, previousMode) => {
         </div>
       </div>
 
-      <div v-if="currentParty" class="glass-panel p-4 mb-4 active-party-panel">
-        <div class="d-flex justify-between align-center mb-3">
-          <div>
-            <h3 class="mb-1">Your Party</h3>
-            <p class="text-muted">{{ currentParty.members.length }}/5 members</p>
-            <p class="text-muted">Party Code: {{ currentParty.code || 'No code set' }}</p>
+      <div v-if="currentParty" class="glass-panel panel active-party-panel">
+        <div class="party-header d-flex justify-between align-center">
+          <div class="party-header-info">
+            <div class="section-header party-title-row">
+              <span class="section-accent"></span>
+              <h3>Your Party</h3>
+            </div>
+            <div class="party-meta d-flex align-center gap-3">
+              <span class="count-badge">{{ currentParty.members.length }}/5</span>
+              <span class="stat-pill">Code: {{ currentParty.code || 'No code set' }}</span>
+            </div>
           </div>
-          <div class="d-flex gap-2">
-            <button class="btn-secondary" @click="refreshPartyAndUser">Refresh Party</button>
-            <button class="btn-secondary text-danger" @click="leaveCurrentParty">{{ currentParty.leader_id === authStore.backendUser?.id ? 'Disband Party' : 'Leave Party' }}</button>
+          <div class="d-flex gap-2 party-actions">
+            <button class="btn-secondary btn-secondary--sm" @click="refreshPartyAndUser">Refresh</button>
+            <button class="btn-secondary btn-secondary--sm btn-danger-outline" @click="leaveCurrentParty">{{ currentParty.leader_id === authStore.backendUser?.id ? 'Disband' : 'Leave' }}</button>
           </div>
         </div>
         <div class="party-member-grid">
-          <div v-for="member in currentParty.members" :key="member.id" class="party-member-card glass-panel">
-            <h5>{{ member.username || 'Unknown User' }}</h5>
-            <p class="text-muted">Rank: {{ member.rank || 'Unranked' }}</p>
-            <p class="text-muted">Mood: {{ member.mood || 'Not set' }}</p>
+          <div v-for="member in currentParty.members" :key="member.id" class="party-member-card glass-panel player-card">
+            <h5 class="player-card__name">{{ member.username || 'Unknown User' }}</h5>
+            <div class="stat-row">
+              <span class="stat-pill stat-pill--rank">{{ member.rank || 'Unranked' }}</span>
+              <span class="stat-pill stat-pill--mood">{{ member.mood || 'Not set' }}</span>
+            </div>
             <div class="agent-column">
-              <span class="text-muted agent-title">Top 5 Agents</span>
-              <span v-for="agent in getPriorityAgents(member.agent_priority)" :key="agent" class="agent-line">{{ agent }}</span>
+              <span class="agent-title">Top 5 Agents</span>
+              <span v-for="(agent, idx) in getPriorityAgents(member.agent_priority)" :key="agent" class="agent-line">
+                <span class="agent-rank">{{ idx + 1 }}</span>{{ agent }}
+              </span>
             </div>
             <button
               v-if="currentParty.leader_id === authStore.backendUser?.id && member.id !== authStore.backendUser?.id"
-              class="btn-secondary text-danger mt-2"
+              class="btn-secondary btn-secondary--sm btn-danger-outline w-100 player-card__actions"
               @click="removePartyMember(member.id)"
             >
               Remove
@@ -615,48 +638,60 @@ watch(currentMode, async (mode, previousMode) => {
       </div>
 
       <!-- List Views -->
-      <div class="views-section glass-panel p-4">
-        <div v-if="currentMode === 'none'" class="text-center py-5 text-muted">
+      <div class="views-section glass-panel panel">
+        <div v-if="currentMode === 'none'" class="empty-state">
           Select one of the options above to see the playerbase or parties.
         </div>
         
         <div v-if="currentMode === 'search'" class="animate-fade-in">
-          <h3 class="mb-4">Available Parties</h3>
+          <div class="section-header">
+            <span class="section-accent"></span>
+            <h3>Available Parties</h3>
+          </div>
           <div class="grid-list">
-            <div v-for="party in partiesList" :key="party.id" class="card p-3 glass-panel">
-              <div class="d-flex justify-between align-center mb-3">
-                <div>
-                  <h5>Party #{{ party.id }}</h5>
-                  <p class="text-muted">Code: {{ party.code }}</p>
-                  <p class="text-muted">Members: {{ party.members.length }}/5</p>
+            <div v-for="party in partiesList" :key="party.id" class="party-list-card glass-panel">
+              <div class="party-list-header d-flex justify-between align-center">
+                <div class="party-list-info">
+                  <h5 class="party-list-title">Party #{{ party.id }}</h5>
+                  <div class="party-list-meta d-flex align-center gap-2 mt-2">
+                    <span class="stat-pill">Code: {{ party.code }}</span>
+                    <span class="count-badge">{{ party.members.length }}/5</span>
+                  </div>
                 </div>
-                <button class="btn-primary" @click="sendJoinRequest(party)" :disabled="!!currentParty">Request to Join</button>
+                <button class="btn-primary btn-primary--sm" @click="sendJoinRequest(party)" :disabled="!!currentParty">Request to Join</button>
               </div>
               <div class="party-member-grid search-party-member-grid">
-                <div v-for="member in party.members" :key="member.id" class="party-member-card glass-panel">
-                  <h5>{{ member.username || 'Unknown User' }}</h5>
-                  <p class="text-muted">Rank: {{ member.rank || 'Unranked' }}</p>
-                  <p class="text-muted">Mood: {{ member.mood || 'Not set' }}</p>
+                <div v-for="member in party.members" :key="member.id" class="party-member-card glass-panel player-card player-card--compact">
+                  <h5 class="player-card__name">{{ member.username || 'Unknown User' }}</h5>
+                  <div class="stat-row">
+                    <span class="stat-pill stat-pill--rank">{{ member.rank || 'Unranked' }}</span>
+                    <span class="stat-pill stat-pill--mood">{{ member.mood || 'Not set' }}</span>
+                  </div>
                   <div class="agent-column">
-                    <span class="text-muted agent-title">Top 5 Agents</span>
-                    <span v-for="agent in getPriorityAgents(member.agent_priority)" :key="agent" class="agent-line">{{ agent }}</span>
+                    <span class="agent-title">Top 5 Agents</span>
+                    <span v-for="(agent, idx) in getPriorityAgents(member.agent_priority)" :key="agent" class="agent-line">
+                      <span class="agent-rank">{{ idx + 1 }}</span>{{ agent }}
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
-            <div v-if="partiesList.length === 0" class="text-muted">No parties found.</div>
+            <div v-if="partiesList.length === 0" class="empty-state">No parties found.</div>
           </div>
         </div>
 
         <div v-if="currentMode === 'create'" class="animate-fade-in">
-          <div class="d-flex justify-between align-center mb-4">
-            <h3>Individual Players</h3>
-            <button class="btn-secondary" @click="fetchIndividualPlayers">Refresh Players</button>
+          <div class="d-flex justify-between align-center mb-4 list-toolbar">
+            <div class="section-header section-header--inline">
+              <span class="section-accent"></span>
+              <h3>Individual Players</h3>
+            </div>
+            <button class="btn-secondary btn-secondary--sm" @click="fetchIndividualPlayers">Refresh</button>
           </div>
-          <div class="filter-panel glass-panel p-3 mb-4">
+          <div class="filter-panel glass-panel panel-sm">
             <div class="filter-row">
               <div class="filter-item">
-                <label>Mood</label>
+                <label class="field-label">Mood</label>
                 <select v-model="selectedMoodFilter" class="input-field mt-2">
                   <option v-for="filter in moodFilters" :key="filter.value" :value="filter.value">
                     {{ filter.label }}
@@ -664,13 +699,13 @@ watch(currentMode, async (mode, previousMode) => {
                 </select>
               </div>
               <div class="filter-item">
-                <label>Min Rating</label>
+                <label class="field-label">Min Rating</label>
                 <select v-model="selectedMinRating" class="input-field mt-2">
                   <option v-for="rank in ranks" :key="`min-${rank}`" :value="rank">{{ rank }}</option>
                 </select>
               </div>
               <div class="filter-item">
-                <label>Max Rating</label>
+                <label class="field-label">Max Rating</label>
                 <select v-model="selectedMaxRating" class="input-field mt-2">
                   <option v-for="rank in ranks" :key="`max-${rank}`" :value="rank">{{ rank }}</option>
                 </select>
@@ -678,47 +713,54 @@ watch(currentMode, async (mode, previousMode) => {
             </div>
           </div>
           <div class="grid-list">
-            <div v-for="player in filteredIndividualPlayers" :key="player.id" class="card p-3 glass-panel">
-              <h5>{{ player.username || 'Unknown User' }}</h5>
-              <p class="text-muted">Rank: {{ player.rank || 'Unranked' }}</p>
-              <p class="text-muted">Mood: {{ player.mood || 'Not set' }}</p>
-              <div class="agent-column">
-                <span class="text-muted agent-title">Top 5 Agents</span>
-                <span v-for="agent in getPriorityAgents(player.agent_priority)" :key="agent" class="agent-line">{{ agent }}</span>
+            <div v-for="player in filteredIndividualPlayers" :key="player.id" class="player-card glass-panel">
+              <h5 class="player-card__name">{{ player.username || 'Unknown User' }}</h5>
+              <div class="stat-row">
+                <span class="stat-pill stat-pill--rank">{{ player.rank || 'Unranked' }}</span>
+                <span class="stat-pill stat-pill--mood">{{ player.mood || 'Not set' }}</span>
               </div>
-              <button class="btn-primary mt-3 w-100" @click="sendInviteRequest(player)">Invite to Party</button>
+              <div class="agent-column">
+                <span class="agent-title">Top 5 Agents</span>
+                <span v-for="(agent, idx) in getPriorityAgents(player.agent_priority)" :key="agent" class="agent-line">
+                  <span class="agent-rank">{{ idx + 1 }}</span>{{ agent }}
+                </span>
+              </div>
+              <button class="btn-primary w-100 player-card__actions" @click="sendInviteRequest(player)">Invite to Party</button>
             </div>
-            <div v-if="filteredIndividualPlayers.length === 0" class="text-muted">No players found.</div>
+            <div v-if="filteredIndividualPlayers.length === 0" class="empty-state">No players found.</div>
           </div>
         </div>
       </div>
       
       <!-- Incoming Requests View -->
-      <div class="glass-panel p-4 mt-4" v-if="currentMode !== 'none'">
-        <div class="d-flex justify-between align-center mb-4">
-          <h3>Incoming Requests</h3>
-          <button class="btn-secondary" @click="fetchIncomingRequests">Refresh</button>
+      <div class="glass-panel panel requests-panel" v-if="currentMode !== 'none'">
+        <div class="d-flex justify-between align-center mb-4 list-toolbar">
+          <div class="section-header section-header--inline">
+            <span class="section-accent"></span>
+            <h3>Incoming Requests</h3>
+          </div>
+          <button class="btn-secondary btn-secondary--sm" @click="fetchIncomingRequests">Refresh</button>
         </div>
-        <div class="grid-list">
-          <div v-for="req in incomingRequests" :key="req.id" class="card p-3 glass-panel d-flex justify-between request-card">
-            <div>
-              <h5>{{ req.type === 'join' ? 'Join Request' : 'Party Invite' }}</h5>
-              <p class="text-muted">
-                From {{ req.sender?.username || `User ID: ${req.sender_id}` }}
-              </p>
-              <p class="text-muted">Rank: {{ req.sender?.rank || 'Unranked' }}</p>
-              <p class="text-muted">Mood: {{ req.sender?.mood || 'Not set' }}</p>
-              <div class="agent-column">
-                <span class="text-muted agent-title">Top 5 Agents</span>
-                <span v-for="agent in getPriorityAgents(req.sender?.agent_priority)" :key="agent" class="agent-line">{{ agent }}</span>
-              </div>
+        <div class="grid-list requests-grid">
+          <div v-for="req in incomingRequests" :key="req.id" class="request-card glass-panel player-card">
+            <div class="request-type-badge">{{ req.type === 'join' ? 'Join Request' : 'Party Invite' }}</div>
+            <h5 class="player-card__name">{{ req.sender?.username || `User ID: ${req.sender_id}` }}</h5>
+            <div class="stat-row">
+              <span class="stat-pill stat-pill--rank">{{ req.sender?.rank || 'Unranked' }}</span>
+              <span class="stat-pill stat-pill--mood">{{ req.sender?.mood || 'Not set' }}</span>
             </div>
-            <div class="d-flex gap-2">
-              <button class="btn-primary" @click="respondToIncomingRequest(req, true)">Accept</button>
-              <button class="btn-secondary text-danger" @click="respondToIncomingRequest(req, false)">Reject</button>
+            <div class="agent-column">
+              <span class="agent-title">Top 5 Agents</span>
+              <span v-for="(agent, idx) in getPriorityAgents(req.sender?.agent_priority)" :key="agent" class="agent-line">
+                <span class="agent-rank">{{ idx + 1 }}</span>{{ agent }}
+              </span>
+            </div>
+            <div class="d-flex gap-2 request-actions">
+              <button class="btn-primary btn-primary--sm flex-1" @click="respondToIncomingRequest(req, true)">Accept</button>
+              <button class="btn-secondary btn-secondary--sm btn-danger-outline flex-1" @click="respondToIncomingRequest(req, false)">Reject</button>
             </div>
           </div>
-          <div v-if="incomingRequests.length === 0" class="text-muted">No incoming requests.</div>
+          <div v-if="incomingRequests.length === 0" class="empty-state">No incoming requests.</div>
         </div>
       </div>
 
@@ -729,29 +771,117 @@ watch(currentMode, async (mode, previousMode) => {
 <style scoped>
 .dashboard {
   min-height: 100vh;
+  padding-bottom: 48px;
 }
-.m-4 { margin: 16px; }
-.p-4 { padding: 24px; }
-.px-4 { padding-left: 24px; padding-right: 24px; }
-.py-3 { padding-top: 16px; padding-bottom: 16px; }
-.py-5 { padding-top: 48px; padding-bottom: 48px; }
+
 .flex-1 { flex: 1; }
+
+/* Navbar */
+.navbar {
+  margin: 16px 16px 0;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.navbar-inner {
+  padding: 14px 24px;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-accent {
+  width: 3px;
+  height: 28px;
+  background: var(--riot-red);
+  border-radius: var(--radius-sm);
+}
+
+.brand-title {
+  font-size: 1.15rem;
+  letter-spacing: 0.15em;
+  margin: 0;
+}
+
+.profile-chip {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 6px 14px 6px 8px;
+}
+
+.profile-avatar {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--riot-red), #c92a37);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.85rem;
+  border-radius: var(--radius-sm);
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
+}
 
 .username {
   font-weight: 600;
-  letter-spacing: 1px;
+  letter-spacing: 0.04em;
+  font-size: 0.9rem;
+}
+
+.hashtag-sep {
+  color: var(--riot-red);
+  font-weight: 800;
+  font-size: 1.1rem;
 }
 
 .btn-icon-small {
-  background: none;
-  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
   cursor: pointer;
-  opacity: 0.7;
-  font-size: 1rem;
-  transition: opacity 0.2s;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
 }
+
 .btn-icon-small:hover {
-  opacity: 1;
+  color: var(--riot-red);
+  border-color: var(--riot-red);
+  background: var(--riot-red-dim);
+}
+
+/* Layout panels */
+.dashboard-body {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.panel {
+  padding: 28px;
+}
+
+.panel-sm {
+  padding: 20px;
+}
+
+.field-hint {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-dim);
+  font-size: 0.68rem;
 }
 
 .preferences-grid {
@@ -762,129 +892,332 @@ watch(currentMode, async (mode, previousMode) => {
 }
 
 .disabled-overlay {
-  opacity: 0.6;
+  opacity: 0.45;
   pointer-events: none;
+  filter: grayscale(0.3);
 }
 
 .agent-list {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  background: rgba(0,0,0,0.2);
-  padding: 12px;
-  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 14px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--glass-border);
+  min-height: 80px;
 }
 
 .agent-badge {
   background: var(--dark-elevated);
-  padding: 4px 12px;
-  border-radius: 16px;
-  font-size: 0.85rem;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  font-weight: 600;
   cursor: grab;
   border: 1px solid var(--glass-border);
   transition: all var(--transition-fast);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
+
 .agent-badge:hover {
   border-color: var(--riot-red);
+  background: var(--riot-red-dim);
+  color: var(--text-primary);
+}
+
+.agent-badge:active {
+  cursor: grabbing;
+}
+
+.save-row {
+  padding-top: 8px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.save-btn {
+  min-width: 180px;
+}
+
+.save-hint {
+  font-size: 0.85rem;
+}
+
+/* Action cards */
+.actions-section {
+  flex-wrap: wrap;
 }
 
 .action-card {
   transition: all var(--transition-normal);
+  display: flex;
+  flex-direction: column;
 }
+
+.action-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.action-icon {
+  color: var(--riot-red);
+  font-size: 1rem;
+}
+
+.action-card h4 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.action-desc {
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.action-row {
+  margin-top: auto;
+}
+
 .action-card.active {
   border-color: var(--riot-red);
-  box-shadow: 0 0 20px rgba(255, 70, 85, 0.2);
+  box-shadow: 0 0 32px var(--riot-red-dim), inset 0 0 0 1px rgba(255, 70, 85, 0.15);
+  animation: pulse-glow 3s ease-in-out infinite;
 }
 
 .btn-icon {
-  background: none;
+  background: rgba(255, 70, 85, 0.1);
   border: 1px solid var(--riot-red);
   color: var(--riot-red);
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  font-size: 1.2rem;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-md);
+  font-size: 1.1rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all var(--transition-fast);
+  flex-shrink: 0;
 }
+
 .btn-icon:hover {
   background: var(--riot-red);
   color: white;
 }
 
-.grid-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+/* Active party */
+.active-party-panel {
+  border-color: rgba(255, 70, 85, 0.35);
+  background: linear-gradient(135deg, rgba(255, 70, 85, 0.06) 0%, var(--glass-bg) 40%);
+}
+
+.party-header {
+  margin-bottom: 24px;
+  flex-wrap: wrap;
   gap: 16px;
 }
 
+.party-title-row {
+  margin-bottom: 12px;
+}
+
+.party-title-row::after {
+  display: none;
+}
+
+.party-meta {
+  flex-wrap: wrap;
+}
+
+.party-actions {
+  flex-wrap: wrap;
+}
+
+.party-member-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.search-party-member-grid {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.party-member-card {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.player-card--compact {
+  min-height: 180px;
+}
+
+/* Party list cards */
+.party-list-card {
+  padding: 24px;
+  grid-column: 1 / -1;
+  border-left: 3px solid var(--riot-red);
+}
+
+.party-list-header {
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.party-list-title {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.party-list-meta {
+  flex-wrap: wrap;
+}
+
+/* Grids */
+.grid-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.requests-grid {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
 .filter-panel {
-  border-color: var(--glass-border);
+  margin-bottom: 24px;
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .filter-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
+  gap: 20px;
 }
 
-.filter-item label {
-  display: block;
-  margin-bottom: 4px;
-  font-size: 0.85rem;
-  color: var(--text-muted);
+.section-header--inline {
+  margin-bottom: 0;
+  flex: 1;
 }
 
-.active-party-panel {
-  border-color: var(--riot-red);
+.section-header--inline::after {
+  display: none;
 }
 
-.party-member-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 16px;
+.list-toolbar {
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
-.search-party-member-grid {
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  margin-top: 12px;
-}
-
-.party-member-card {
-  aspect-ratio: 1 / 1;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 8px;
-}
-
+/* Agent list in cards */
 .agent-column {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-top: 4px;
+  margin-top: 8px;
+  flex: 1;
 }
 
 .agent-title {
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 4px;
 }
 
 .agent-line {
-  display: block;
-  padding-left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0 4px 8px;
   border-left: 2px solid var(--glass-border);
-  font-size: 0.9rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  transition: border-color var(--transition-fast);
 }
 
+.player-card:hover .agent-line {
+  border-left-color: var(--riot-red-dim);
+}
+
+.agent-rank {
+  color: var(--riot-red);
+  font-weight: 800;
+  font-size: 0.7rem;
+  min-width: 14px;
+}
+
+/* Request cards */
 .request-card {
-  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+}
+
+.request-type-badge {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 4px 10px;
+  background: var(--riot-red-dim);
+  border: 1px solid rgba(255, 70, 85, 0.3);
+  color: var(--riot-red);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+}
+
+.request-actions {
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+.requests-panel {
+  margin-top: 0;
+}
+
+@media (max-width: 900px) {
+  .preferences-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .actions-section {
+    flex-direction: column;
+  }
+
+  .navbar-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .profile-edit {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 640px) {
+  .navbar {
+    margin: 8px 8px 0;
+  }
+
+  .navbar-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .panel {
+    padding: 20px;
+  }
 }
 </style>
