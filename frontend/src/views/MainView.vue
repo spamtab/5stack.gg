@@ -44,6 +44,13 @@ const incomingRequests = ref<any[]>([])
 const currentParty = ref<any | null>(null)
 let refreshTimer: number | undefined
 
+// Sidebar state
+const sidebarOpen = ref(false)
+
+// Tracks which parties/players the user has already sent a request to (until refresh)
+const sentJoinPartyIds = ref<Set<string>>(new Set())
+const sentInvitePlayerIds = ref<Set<string>>(new Set())
+
 const getPriorityAgents = (agents?: string[] | null) => {
   return (agents ?? []).slice(0, 5)
 }
@@ -129,6 +136,9 @@ onMounted(async () => {
     await fetchMyParty()
   }
 
+  // Always load incoming requests on mount so the sidebar badge is accurate
+  await fetchIncomingRequests()
+
   // Auto-save whenever rank or mood dropdown changes
   watch([selectedRank, selectedMood], () => {
     if (currentMode.value === 'none') savePreferencesQuiet()
@@ -187,7 +197,7 @@ const refreshPartyAndUser = async () => {
 const refreshDashboardState = async () => {
   await fetchUserData()
   await fetchMyParty()
-  await fetchIncomingRequests()
+  await fetchIncomingRequests()  // always — keeps sidebar badge live
   if (currentMode.value === 'search') {
     await fetchParties()
   }
@@ -438,6 +448,7 @@ const sendJoinRequest = async (party: any) => {
       body: JSON.stringify({ type: 'join', party_id: party.id }),
     })
     if (response.ok) {
+      sentJoinPartyIds.value = new Set([...sentJoinPartyIds.value, String(party.id)])
       await fetchIncomingRequests()
     }
   } catch (e) {
@@ -458,6 +469,7 @@ const sendInviteRequest = async (player: any) => {
       body: JSON.stringify({ type: 'invite', receiver_id: player.id }),
     })
     if (response.ok) {
+      sentInvitePlayerIds.value = new Set([...sentInvitePlayerIds.value, String(player.id)])
       await fetchIncomingRequests()
     }
   } catch (e) {
@@ -503,6 +515,9 @@ const handleLogout = async () => {
   partiesList.value = []
   incomingRequests.value = []
   currentParty.value = null
+  sidebarOpen.value = false
+  sentJoinPartyIds.value = new Set()
+  sentInvitePlayerIds.value = new Set()
   await setLookingForParty(false)
   await authStore.logout()
   router.push('/login')
@@ -525,12 +540,74 @@ watch(currentMode, async (mode, previousMode) => {
     individualPlayers.value = []
     partiesList.value = []
     currentParty.value = null
+    sentJoinPartyIds.value = new Set()
+    sentInvitePlayerIds.value = new Set()
   }
 })
 </script>
 
 <template>
   <div class="dashboard">
+    <!-- Requests Sidebar Toggle Button -->
+    <button
+      class="sidebar-toggle"
+      :class="{ 'sidebar-toggle--open': sidebarOpen }"
+      @click="sidebarOpen = !sidebarOpen"
+      :title="sidebarOpen ? 'Close Requests' : 'Incoming Requests'"
+      aria-label="Toggle incoming requests sidebar"
+    >
+      <!-- Envelope SVG icon -->
+      <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+        <polyline points="22,6 12,13 2,6"/>
+      </svg>
+      <span v-if="incomingRequests.length > 0" class="sidebar-badge">{{ incomingRequests.length }}</span>
+    </button>
+
+    <!-- Sidebar Overlay -->
+    <transition name="overlay-fade">
+      <div v-if="sidebarOpen" class="sidebar-overlay" @click="sidebarOpen = false"></div>
+    </transition>
+
+    <!-- Requests Sidebar Panel -->
+    <transition name="sidebar-slide">
+      <aside v-if="sidebarOpen" class="requests-sidebar glass-panel">
+        <div class="sidebar-header d-flex justify-between align-center">
+          <div class="section-header section-header--inline">
+            <span class="section-accent"></span>
+            <h3>Incoming Requests</h3>
+          </div>
+          <div class="d-flex align-center gap-2">
+            <button class="btn-icon-small" title="Refresh" @click="fetchIncomingRequests">↻</button>
+            <button class="btn-icon-small sidebar-close" title="Close" @click="sidebarOpen = false">✕</button>
+          </div>
+        </div>
+        <div class="sidebar-body">
+          <div v-if="incomingRequests.length === 0" class="empty-state">No incoming requests.</div>
+          <div v-for="req in incomingRequests" :key="req.id" class="request-card glass-panel player-card">
+            <div class="request-type-badge">{{ req.type === 'join' ? 'Join Request' : 'Party Invite' }}</div>
+            <h5 class="player-card__name">{{ req.sender?.username || `User ID: ${req.sender_id}` }}</h5>
+            <div class="stat-row">
+              <span class="stat-pill stat-pill--rank">{{ req.sender?.rank || 'Unranked' }}</span>
+              <span class="stat-pill stat-pill--mood">{{ req.sender?.mood || 'Not set' }}</span>
+            </div>
+            <div class="agent-column">
+              <span class="agent-title">Top 5 Agents</span>
+              <span v-for="(agent, idx) in getPriorityAgents(req.sender?.agent_priority)" :key="agent" class="agent-line">
+                <span class="agent-rank">{{ idx + 1 }}</span>
+                <img v-if="getAgentIcon(agent)" :src="getAgentIcon(agent)" :alt="agent" class="agent-line-icon" />
+                <span v-else class="agent-line-icon agent-line-icon--placeholder"></span>
+                {{ agent }}
+              </span>
+            </div>
+            <div class="d-flex gap-2 request-actions">
+              <button class="btn-primary btn-primary--sm flex-1" @click="respondToIncomingRequest(req, true)">Accept</button>
+              <button class="btn-secondary btn-secondary--sm btn-danger-outline flex-1" @click="respondToIncomingRequest(req, false)">Reject</button>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </transition>
     <!-- Navbar -->
     <nav class="navbar glass-panel">
       <div class="navbar-inner d-flex justify-between align-center">
@@ -710,7 +787,15 @@ watch(currentMode, async (mode, previousMode) => {
                     <span class="count-badge">{{ party.members.length }}/5</span>
                   </div>
                 </div>
-                <button class="btn-primary btn-primary--sm" @click="sendJoinRequest(party)" :disabled="!!currentParty">Request to Join</button>
+                <button
+                  class="btn-primary btn-primary--sm"
+                  :class="{ 'btn-sent': sentJoinPartyIds.has(String(party.id)) }"
+                  @click="sendJoinRequest(party)"
+                  :disabled="!!currentParty || sentJoinPartyIds.has(String(party.id))"
+                >
+                  <span v-if="sentJoinPartyIds.has(String(party.id))">✓ Requested</span>
+                  <span v-else>Request to Join</span>
+                </button>
               </div>
               <div class="party-member-grid search-party-member-grid">
                 <div v-for="member in party.members" :key="member.id" class="party-member-card glass-panel player-card player-card--compact">
@@ -783,48 +868,21 @@ watch(currentMode, async (mode, previousMode) => {
                   {{ agent }}
                 </span>
               </div>
-              <button class="btn-primary w-100 player-card__actions" @click="sendInviteRequest(player)">Invite to Party</button>
+              <button
+                class="btn-primary w-100 player-card__actions"
+                :class="{ 'btn-sent': sentInvitePlayerIds.has(String(player.id)) }"
+                @click="sendInviteRequest(player)"
+                :disabled="sentInvitePlayerIds.has(String(player.id))"
+              >
+                <span v-if="sentInvitePlayerIds.has(String(player.id))">✓ Invited</span>
+                <span v-else>Invite to Party</span>
+              </button>
             </div>
             <div v-if="filteredIndividualPlayers.length === 0" class="empty-state">No players found.</div>
           </div>
         </div>
       </div>
       
-      <!-- Incoming Requests View -->
-      <div class="glass-panel panel requests-panel" v-if="currentMode !== 'none'">
-        <div class="d-flex justify-between align-center mb-4 list-toolbar">
-          <div class="section-header section-header--inline">
-            <span class="section-accent"></span>
-            <h3>Incoming Requests</h3>
-          </div>
-          <button class="btn-secondary btn-secondary--sm" @click="fetchIncomingRequests">Refresh</button>
-        </div>
-        <div class="grid-list requests-grid">
-          <div v-for="req in incomingRequests" :key="req.id" class="request-card glass-panel player-card">
-            <div class="request-type-badge">{{ req.type === 'join' ? 'Join Request' : 'Party Invite' }}</div>
-            <h5 class="player-card__name">{{ req.sender?.username || `User ID: ${req.sender_id}` }}</h5>
-            <div class="stat-row">
-              <span class="stat-pill stat-pill--rank">{{ req.sender?.rank || 'Unranked' }}</span>
-              <span class="stat-pill stat-pill--mood">{{ req.sender?.mood || 'Not set' }}</span>
-            </div>
-            <div class="agent-column">
-              <span class="agent-title">Top 5 Agents</span>
-              <span v-for="(agent, idx) in getPriorityAgents(req.sender?.agent_priority)" :key="agent" class="agent-line">
-                <span class="agent-rank">{{ idx + 1 }}</span>
-                <img v-if="getAgentIcon(agent)" :src="getAgentIcon(agent)" :alt="agent" class="agent-line-icon" />
-                <span v-else class="agent-line-icon agent-line-icon--placeholder"></span>
-                {{ agent }}
-              </span>
-            </div>
-            <div class="d-flex gap-2 request-actions">
-              <button class="btn-primary btn-primary--sm flex-1" @click="respondToIncomingRequest(req, true)">Accept</button>
-              <button class="btn-secondary btn-secondary--sm btn-danger-outline flex-1" @click="respondToIncomingRequest(req, false)">Reject</button>
-            </div>
-          </div>
-          <div v-if="incomingRequests.length === 0" class="empty-state">No incoming requests.</div>
-        </div>
-      </div>
-
     </div>
   </div>
 </template>
@@ -1317,6 +1375,153 @@ watch(currentMode, async (mode, previousMode) => {
 
 .requests-panel {
   margin-top: 0;
+}
+
+/* ── Sent-state button ── */
+.btn-sent,
+.btn-sent:disabled {
+  background: linear-gradient(135deg, #1a7a4a 0%, #145e38 100%) !important;
+  opacity: 1 !important;
+  cursor: default !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* ── Sidebar toggle button ── */
+.sidebar-toggle {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  z-index: 300;
+  width: 48px;
+  height: 56px;
+  background: var(--dark-elevated);
+  border: 1px solid var(--glass-border);
+  border-right: none;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  box-shadow: -4px 0 16px rgba(0,0,0,0.3);
+}
+
+.sidebar-toggle:hover,
+.sidebar-toggle--open {
+  color: var(--text-primary);
+  border-color: var(--riot-red);
+  background: var(--riot-red-dim);
+  box-shadow: -4px 0 20px var(--riot-red-glow);
+}
+
+.sidebar-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.sidebar-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background: var(--riot-red);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* ── Sidebar overlay ── */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 299;
+  backdrop-filter: blur(2px);
+}
+
+/* ── Sidebar panel ── */
+.requests-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 360px;
+  max-width: 92vw;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  border-right: none;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+
+.sidebar-close {
+  color: var(--text-secondary);
+}
+
+.sidebar-close:hover {
+  color: var(--riot-red);
+  border-color: var(--riot-red);
+  background: var(--riot-red-dim);
+}
+
+.sidebar-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--riot-red-dim) transparent;
+}
+
+.sidebar-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-body::-webkit-scrollbar-thumb {
+  background: var(--riot-red-dim);
+  border-radius: 2px;
+}
+
+/* ── Sidebar transitions ── */
+.sidebar-slide-enter-active,
+.sidebar-slide-leave-active {
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-slide-enter-from,
+.sidebar-slide-leave-to {
+  transform: translateX(100%);
+}
+
+.overlay-fade-enter-active,
+.overlay-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.overlay-fade-enter-from,
+.overlay-fade-leave-to {
+  opacity: 0;
 }
 
 @media (max-width: 900px) {
