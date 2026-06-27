@@ -10,7 +10,7 @@ const router = useRouter()
 
 // Constants
 const ranks = ['Iron 1', 'Iron 2', 'Iron 3', 'Bronze 1', 'Bronze 2', 'Bronze 3', 'Silver 1', 'Silver 2', 'Silver 3', 'Gold 1', 'Gold 2', 'Gold 3', 'Platinum 1', 'Platinum 2', 'Platinum 3', 'Diamond 1', 'Diamond 2', 'Diamond 3', 'Ascendant 1', 'Ascendant 2', 'Ascendant 3', 'Immortal 1', 'Immortal 2', 'Immortal 3', 'Radiant']
-const initialAgents = ['Astra', 'Breach', 'Brimstone', 'Chamber', 'Clove', 'Cypher', 'Deadlock', 'Fade', 'Gekko', 'Harbor', 'Iso', 'Jett', 'KAY/O', 'Killjoy', 'Neon', 'Omen', 'Phoenix', 'Raze', 'Reyna', 'Sage', 'Skye', 'Sova', 'Viper', 'Yoru']
+const initialAgents = ['Astra', 'Breach', 'Brimstone', 'Chamber', 'Clove', 'Cypher', 'Deadlock', 'Fade', 'Gekko', 'Harbor', 'Iso', 'Jett', 'KAY/O', 'Killjoy', 'Miks', 'Neon', 'Omen', 'Phoenix', 'Raze', 'Reyna', 'Sage', 'Skye', 'Sova', 'Tejo', 'Veto', 'Viper', 'Vyse', 'Waylay', 'Yoru']
 const moods = ['serious locked in', 'chill competitive']
 const moodFilters = [
   { label: 'Any', value: 'any' },
@@ -46,6 +46,47 @@ let refreshTimer: number | undefined
 
 const getPriorityAgents = (agents?: string[] | null) => {
   return (agents ?? []).slice(0, 5)
+}
+
+// Maps agent display names to their icon filenames.
+// Agents without a PNG yet have an empty string — icons will resolve once
+// the matching file is dropped into src/assets/agent images/.
+const agentIconMap: Record<string, string> = {
+  'Astra':      'Astra_icon.png',
+  'Breach':     'Breach_icon.png',
+  'Brimstone':  'Brimstone_icon.png',
+  'Chamber':    'Chamber_icon.png',
+  'Clove':      '',            // PNG not yet available
+  'Cypher':     'Cypher_icon.png',
+  'Deadlock':   'Deadlock_icon.png',
+  'Fade':       'Fade_icon.png',
+  'Gekko':      'Gekko_icon.png',
+  'Harbor':     '',            // PNG not yet available
+  'Iso':        '',            // PNG not yet available
+  'Jett':       'Jett_icon.png',
+  'KAY/O':      'KAYO_icon.png',
+  'Killjoy':    'Killjoy_icon.png',
+  'Miks':       'Miks_icon.png',
+  'Neon':       'Neon_icon.png',
+  'Omen':       'Omen_icon.png',
+  'Phoenix':    'Phoenix_icon.png',
+  'Raze':       'Raze_icon.png',
+  'Reyna':      'Reyna_icon.png',
+  'Sage':       'Sage_icon.png',
+  'Skye':       'Skye_icon.png',
+  'Sova':       'Sova_icon.png',
+  'Tejo':       'Tejo_icon.png',
+  'Veto':       '',            // PNG not yet available
+  'Viper':      'Viper_icon.png',
+  'Vyse':       'Vyse_icon.png',
+  'Waylay':     '',            // PNG not yet available
+  'Yoru':       'Yoru_icon.png',
+}
+
+const getAgentIcon = (agentName: string): string => {
+  const filename = agentIconMap[agentName]
+  if (!filename) return ''
+  return new URL(`../assets/agent images/${filename}`, import.meta.url).href
 }
 
 const rankToIndex = (rank?: string | null) => {
@@ -545,11 +586,19 @@ watch(currentMode, async (mode, previousMode) => {
           
           <div class="pref-item agent-priority-section">
             <label class="field-label">Agent Priority <span class="field-hint">Drag to reorder</span></label>
-            <draggable v-model="agentPriority" item-key="agent" class="agent-list mt-2" :disabled="currentMode !== 'none'">
-              <template #item="{element}">
-                <div class="agent-badge">{{ element }}</div>
-              </template>
-            </draggable>
+            <div class="agent-list-scroll-wrap mt-2">
+              <draggable v-model="agentPriority" item-key="agent" class="agent-list-vertical" :disabled="currentMode !== 'none'">
+                <template #item="{element, index}">
+                  <div class="agent-badge-vertical">
+                    <span class="agent-badge-rank">{{ index + 1 }}</span>
+                    <img v-if="getAgentIcon(element)" :src="getAgentIcon(element)" :alt="element" class="agent-badge-icon" />
+                    <span v-else class="agent-badge-icon agent-badge-icon--placeholder"></span>
+                    <span class="agent-badge-name">{{ element }}</span>
+                    <span class="drag-handle">⠿</span>
+                  </div>
+                </template>
+              </draggable>
+            </div>
           </div>
         </div>
 
@@ -623,7 +672,10 @@ watch(currentMode, async (mode, previousMode) => {
             <div class="agent-column">
               <span class="agent-title">Top 5 Agents</span>
               <span v-for="(agent, idx) in getPriorityAgents(member.agent_priority)" :key="agent" class="agent-line">
-                <span class="agent-rank">{{ idx + 1 }}</span>{{ agent }}
+                <span class="agent-rank">{{ idx + 1 }}</span>
+                <img v-if="getAgentIcon(agent)" :src="getAgentIcon(agent)" :alt="agent" class="agent-line-icon" />
+                <span v-else class="agent-line-icon agent-line-icon--placeholder"></span>
+                {{ agent }}
               </span>
             </div>
             <button
@@ -670,7 +722,10 @@ watch(currentMode, async (mode, previousMode) => {
                   <div class="agent-column">
                     <span class="agent-title">Top 5 Agents</span>
                     <span v-for="(agent, idx) in getPriorityAgents(member.agent_priority)" :key="agent" class="agent-line">
-                      <span class="agent-rank">{{ idx + 1 }}</span>{{ agent }}
+                      <span class="agent-rank">{{ idx + 1 }}</span>
+                      <img v-if="getAgentIcon(agent)" :src="getAgentIcon(agent)" :alt="agent" class="agent-line-icon" />
+                      <span v-else class="agent-line-icon agent-line-icon--placeholder"></span>
+                      {{ agent }}
                     </span>
                   </div>
                 </div>
@@ -722,7 +777,10 @@ watch(currentMode, async (mode, previousMode) => {
               <div class="agent-column">
                 <span class="agent-title">Top 5 Agents</span>
                 <span v-for="(agent, idx) in getPriorityAgents(player.agent_priority)" :key="agent" class="agent-line">
-                  <span class="agent-rank">{{ idx + 1 }}</span>{{ agent }}
+                  <span class="agent-rank">{{ idx + 1 }}</span>
+                  <img v-if="getAgentIcon(agent)" :src="getAgentIcon(agent)" :alt="agent" class="agent-line-icon" />
+                  <span v-else class="agent-line-icon agent-line-icon--placeholder"></span>
+                  {{ agent }}
                 </span>
               </div>
               <button class="btn-primary w-100 player-card__actions" @click="sendInviteRequest(player)">Invite to Party</button>
@@ -752,7 +810,10 @@ watch(currentMode, async (mode, previousMode) => {
             <div class="agent-column">
               <span class="agent-title">Top 5 Agents</span>
               <span v-for="(agent, idx) in getPriorityAgents(req.sender?.agent_priority)" :key="agent" class="agent-line">
-                <span class="agent-rank">{{ idx + 1 }}</span>{{ agent }}
+                <span class="agent-rank">{{ idx + 1 }}</span>
+                <img v-if="getAgentIcon(agent)" :src="getAgentIcon(agent)" :alt="agent" class="agent-line-icon" />
+                <span v-else class="agent-line-icon agent-line-icon--placeholder"></span>
+                {{ agent }}
               </span>
             </div>
             <div class="d-flex gap-2 request-actions">
@@ -897,38 +958,95 @@ watch(currentMode, async (mode, previousMode) => {
   filter: grayscale(0.3);
 }
 
-.agent-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.agent-list-scroll-wrap {
   background: rgba(0, 0, 0, 0.35);
-  padding: 14px;
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
-  border: 1px solid var(--glass-border);
-  min-height: 80px;
+  max-height: 340px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--riot-red-dim) transparent;
 }
 
-.agent-badge {
-  background: var(--dark-elevated);
-  padding: 6px 14px;
+.agent-list-scroll-wrap::-webkit-scrollbar {
+  width: 4px;
+}
+
+.agent-list-scroll-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.agent-list-scroll-wrap::-webkit-scrollbar-thumb {
+  background: var(--riot-red-dim);
+  border-radius: 2px;
+}
+
+.agent-list-vertical {
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  gap: 4px;
+  min-height: 60px;
+}
+
+.agent-badge-vertical {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
   border-radius: var(--radius-sm);
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: grab;
+  background: var(--dark-elevated);
   border: 1px solid var(--glass-border);
+  cursor: grab;
   transition: all var(--transition-fast);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  user-select: none;
 }
 
-.agent-badge:hover {
+.agent-badge-vertical:hover {
   border-color: var(--riot-red);
   background: var(--riot-red-dim);
+}
+
+.agent-badge-vertical:active {
+  cursor: grabbing;
+}
+
+.agent-badge-rank {
+  color: var(--riot-red);
+  font-weight: 800;
+  font-size: 0.72rem;
+  min-width: 18px;
+  text-align: center;
+}
+
+.agent-badge-icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.agent-badge-icon--placeholder {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px dashed var(--glass-border);
+  border-radius: 2px;
+}
+
+.agent-badge-name {
+  flex: 1;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--text-primary);
 }
 
-.agent-badge:active {
-  cursor: grabbing;
+.drag-handle {
+  color: var(--text-dim);
+  font-size: 1rem;
+  flex-shrink: 0;
+  letter-spacing: -2px;
 }
 
 .save-row {
@@ -1154,6 +1272,21 @@ watch(currentMode, async (mode, previousMode) => {
   font-weight: 800;
   font-size: 0.7rem;
   min-width: 14px;
+}
+
+.agent-line-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.agent-line-icon--placeholder {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px dashed var(--glass-border);
+  border-radius: 2px;
 }
 
 /* Request cards */
