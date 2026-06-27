@@ -149,6 +149,10 @@ select.input-field option {
   animation: fadeIn var(--transition-normal) forwards;
 }
 
+.animate-fade-in[style*="animation-delay"] {
+  animation-fill-mode: both;
+}
+
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }

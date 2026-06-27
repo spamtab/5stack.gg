@@ -45,7 +45,7 @@ onMounted(() => {
           // Only redirect if still on auth pages
           const currentPath = router.currentRoute.value.path
           if (currentPath === '/login' || currentPath === '/register') {
-            router.push('/')
+            router.push('/app')
           }
         }
       } catch (e) {

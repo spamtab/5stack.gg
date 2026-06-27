@@ -42,7 +42,7 @@ const handleRegister = async () => {
     const data = await response.json()
     authStore.setBackendUser(data)
     
-    router.push('/')
+    router.push('/app')
   } catch (e: any) {
     errorMsg.value = e.message || 'An error occurred'
   } finally {
