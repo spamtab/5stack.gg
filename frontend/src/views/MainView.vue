@@ -491,7 +491,7 @@ watch(currentMode, async (mode, previousMode) => {
   <div class="dashboard">
     <!-- Navbar -->
     <nav class="navbar d-flex justify-between align-center px-4 py-3 glass-panel m-4">
-      <h2 class="text-danger">V-Match</h2>
+      <h2 class="text-danger">5stack.gg</h2>
       <div class="d-flex align-center gap-3">
         <div v-if="!isEditingUsername" class="d-flex align-center gap-2">
           <span class="username">{{ username }}</span>

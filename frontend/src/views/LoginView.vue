@@ -21,7 +21,7 @@ const handleLogin = async () => {
 <template>
   <div class="login-container d-flex align-center justify-center">
     <div class="glass-panel login-card text-center animate-fade-in">
-      <h1 class="mb-4 title">V-Match</h1>
+      <h1 class="mb-4 title">5stack.gg</h1>
       <p class="text-muted mb-4">Find your perfect Valorant squad.</p>
       
       <button class="btn-primary w-100 justify-center" @click="handleLogin">
