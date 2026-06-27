@@ -18,25 +18,15 @@ const moodFilters = [
   { label: 'Locked In', value: 'locked' },
 ]
 
-// Migrates old mood values stored in DB to the new short names
-const normalizeMood = (mood: string | null | undefined): string => {
-  if (!mood) return moods[0]
-  const map: Record<string, string> = {
-    'serious locked in': 'serious',
-    'chill competitive': 'chill',
-  }
-  return map[mood.toLowerCase()] ?? mood
-}
-
 // User State — seeded from the store's cached profile (set by App.vue on auth)
-const backendUser = authStore.backendUser ?? null
-const username = ref<string>(backendUser?.username || '')
+const backendUser = authStore.backendUser
+const username = ref(backendUser?.username ?? '')
 const isEditingUsername = ref(false)
 const editUsernameInput = ref('')
 const editTaglineInput = ref('')
-const selectedRank = ref<string>(backendUser?.rank || ranks[0])
-const selectedMood = ref<string>(normalizeMood(backendUser?.mood || undefined))
-const agentPriority = ref<string[]>(backendUser?.agent_priority?.length ? [...backendUser.agent_priority] : [...initialAgents])
+const selectedRank = ref(backendUser?.rank ?? ranks[0])
+const selectedMood = ref(backendUser?.mood ?? moods[0])
+const agentPriority = ref(backendUser?.agent_priority ? [...backendUser.agent_priority] : [...initialAgents])
 const selectedMoodFilter = ref<'any' | 'chill' | 'locked'>('any')
 const selectedMinRating = ref(ranks[0])
 const selectedMaxRating = ref(ranks[ranks.length - 1])
@@ -119,7 +109,7 @@ const filteredIndividualPlayers = computed(() => {
   const upperBound = Math.max(minIndex, maxIndex)
 
   return individualPlayers.value.filter((player: any) => {
-    const playerMood = normalizeMood(player.mood)
+    const playerMood = String(player.mood ?? '').toLowerCase()
     const matchesMood =
       moodFilterValue === 'any' ||
       (moodFilterValue === 'chill' && playerMood === 'chill') ||
@@ -177,7 +167,7 @@ const fetchUserData = async () => {
       authStore.setBackendUser(data)
       username.value = data.username ?? ''
       if (data.rank) selectedRank.value = data.rank
-      if (data.mood) selectedMood.value = normalizeMood(data.mood)
+      if (data.mood) selectedMood.value = data.mood
       if (data.agent_priority && data.agent_priority.length > 0) {
         agentPriority.value = data.agent_priority
       }
