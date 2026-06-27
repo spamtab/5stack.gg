@@ -46,7 +46,7 @@ app = FastAPI(title="Valorant Matchmaking API", lifespan=lifespan)
 # Allow CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # TODO: replace with frontend URL in production
+    allow_origins=["https://spamtab.github.io"], # TODO: replace with frontend URL in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
