@@ -1,0 +1,1 @@
+currently in the individual players list, the users who have not yet clicked the "search for existing party" button also show up, fix it so that the individual players list only shows the users who have clicked the "search for existing party" button.

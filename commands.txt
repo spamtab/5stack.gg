@@ -1,0 +1,17 @@
+running commands
+
+backend
+sudo service postgresql start
+sudo service postgresql status
+sudo -u postgres psql
+
+sudo -u postgres psql
+\c partyfinder
+GRANT ALL ON SCHEMA public TO myuser;
+GRANT ALL PRIVILEGES ON DATABASE partyfinder TO myuser;
+
+source venv/bin/activate
+uvicorn main:app --reload
+
+frontend
+npm run dev

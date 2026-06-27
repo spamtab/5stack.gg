@@ -1,0 +1,34 @@
+i want to make a matchmaking app for valorant players
+
+my peferred tech stack(i am open to other suggestions, but i want the cheapest/free tier options as it is just a small MVP)
+vue 3, typescript, pinia, vanilla css in frontend
+firabase only for google signin
+fast api, PostgreSQL in backend
+i have node js, postresql installed in my wsl ubuntu
+
+user flow
+user enters the app using "sign in with google" through firebase
+user then sets their username(it contains a name with the tagline separated by a hashtag) eg. "username#tagline"
+this completes the registration part
+
+now frontend app shows a navbar with the users profile button in the top right corner which has functionality to edit usernames and a logout button.
+in the main page user saves their preferred playstyle/preferences using various dropdown menus
+options in playstyle preferences:-
+dropdown menu titled "rank" containing options(Iron 1, Iron 2, Iron 3, Bronze 1, Bronze 2, Bronze 3, Silver 1, Silver 2, Silver 3, Gold 1, Gold 2, Gold 3, Platinum 1, Platinum 2, Platinum 3, Diamond 1, Diamond 2, Diamond 3, Ascendant 1, Ascendant 2, Ascendant 3, Immortal 1, Immortal 2, Immortal 3, Radiant.)
+draggable valorant agent names with their icons inside a dropdown menu titled titles "agent priority" containing cards containing names of all valorant agents with their profile pictures(Astra, Breach, Brimstone, Chamber, Clove, Cypher, Deadlock, Fade, Gekko, Harbor, Iso, Jett, KAY/O, Killjoy, Miks, Neon, Omen, Phoenix, Raze, Reyna, Sage, Skye, Sova, Tejo, Veto, Viper, Vyse, Waylay, Yoru.) user can rearrange their order and save them.
+dropdown menu titled "mood" containing options("serious locked in" mode, "chill competitive" mode)
+
+after saving values of these 3 dropdowns app has 2 buttons below them where the user can have 2 options, either create a party(become a party leader) or search for an existing party, the user can select any one of them, then that button shows a loading spinner and a cross icon to cancel/leave the party while the other button and the above preferences are disabled(the user cant change them unless they press the cross icon to cancel their entry to the system database or whatever)
+below those 2 buttons the app is divided into three views
+1. an whole party view(where only formed parties by players are stored) with a "request to join button" for the individual playeers
+2. a individual player view(where individual players looking to join a party is stored) along with a "invite to join your party button" for the party leaders
+3. an incoming view where the individual players recieve request from the party leader(s) to join their party, and they can either accept or reject it
+
+the users preferences are public can be viewed when someone hovers over their card except their usernames which is only revealed if they are in the same party after accepting request/invitation from other players.
+the user can view the 1. and 2. lists only when they are in the state of either one of the two options, otherwise a message displays to select one option above to see existing playerbase. the 3. list is only for individual players to view incoming requests
+if user selects create party then the app asks the user to enter the party code and add the party to the party list, meanwhile the user can search/browse/filter based on the playstyle preferences the indiviual palyers looking for a party list and send them a invitation message.
+the party leader can kick other players from the party they are leading, and other members can leave the party voluntarily
+similarly if user selects search for existing party then the user can look up the whole party view where others have already formed a incomplete party(<5 members) look at their preferences and send them a joining request(specifically to the party leader).
+the party leader then gets the request and accepts or rejects it based on their preferences, if the party leader accepts then the joining player is added to the party and their username is revealed to the other members of the party, otherwise they are rejected
+when there are >=2 members in a party the cross icon in create a party button wont work unless the party leader has kicked the remaining party members
+
