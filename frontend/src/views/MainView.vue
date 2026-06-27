@@ -29,14 +29,14 @@ const normalizeMood = (mood: string | null | undefined): string => {
 }
 
 // User State — seeded from the store's cached profile (set by App.vue on auth)
-const backendUser = authStore.backendUser
-const username = ref<string>(backendUser?.username ?? '')
+const backendUser = authStore.backendUser ?? null
+const username = ref<string>(backendUser?.username || '')
 const isEditingUsername = ref(false)
 const editUsernameInput = ref('')
 const editTaglineInput = ref('')
-const selectedRank = ref<string>(backendUser?.rank ?? ranks[0])
-const selectedMood = ref<string>(normalizeMood(backendUser?.mood))
-const agentPriority = ref<string[]>(backendUser?.agent_priority ? [...backendUser.agent_priority] : [...initialAgents])
+const selectedRank = ref<string>(backendUser?.rank || ranks[0])
+const selectedMood = ref<string>(normalizeMood(backendUser?.mood || undefined))
+const agentPriority = ref<string[]>(backendUser?.agent_priority?.length ? [...backendUser.agent_priority] : [...initialAgents])
 const selectedMoodFilter = ref<'any' | 'chill' | 'locked'>('any')
 const selectedMinRating = ref(ranks[0])
 const selectedMaxRating = ref(ranks[ranks.length - 1])
