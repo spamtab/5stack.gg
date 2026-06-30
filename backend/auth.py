@@ -78,3 +78,23 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
 
 def get_current_user_id(decoded_token: dict = Depends(verify_token)) -> str:
     return decoded_token.get("uid")
+
+
+async def verify_token_ws(token: str) -> dict:
+    """Verify JWT for WebSocket connections"""
+    if not cred_path:
+        # Dev mode
+        if token == "mock-token":
+            return {"uid": "mock-user-id"}
+        
+        claims = _decode_jwt_claims(token)
+        uid = claims.get("user_id") or claims.get("sub")
+        if uid:
+            return {"uid": uid}
+        raise ValueError("Invalid token")
+    
+    try:
+        decoded_token = auth.verify_id_token(token)
+        return decoded_token
+    except Exception as e:
+        raise ValueError(f"Invalid token: {e}")

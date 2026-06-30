@@ -8,8 +8,14 @@ from database import get_db
 import models
 import schemas
 import auth
+import websocket_notifications
 
 router = APIRouter()
+
+# Import manager from main.py
+def get_manager():
+    from main import manager
+    return manager
 
 # @router.get("/users/me", response_model=schemas.UserResponse)
 # async def read_users_me(current_user_id: str = Depends(auth.get_current_user_id), db: AsyncSession = Depends(get_db)):
@@ -195,13 +201,23 @@ async def leave_party(current_user_id: str = Depends(auth.get_current_user_id), 
     if not user or not user.party_id:
         raise HTTPException(status_code=400, detail="User is not in a party")
 
-    party_result = await db.execute(select(models.Party).where(models.Party.id == user.party_id))
+    party_id = user.party_id
+    party_result = await db.execute(select(models.Party).where(models.Party.id == party_id))
     party = party_result.scalars().first()
+    
+    manager = get_manager()
+    
     if party and party.leader_id == current_user_id:
+        # Leader is leaving - disband the party
         members_result = await db.execute(select(models.User).where(models.User.party_id == party.id))
         members = members_result.scalars().all()
+        
+        # Notify all members before disbanding
+        await websocket_notifications.notify_party_disbanded(manager, party_id)
+        
         for member in members:
             member.party_id = None
+            manager.remove_from_party(member.id, party_id)
 
         requests_result = await db.execute(select(models.PartyRequest).where(models.PartyRequest.party_id == party.id))
         requests = requests_result.scalars().all()
@@ -212,17 +228,21 @@ async def leave_party(current_user_id: str = Depends(auth.get_current_user_id), 
         await db.commit()
         return {"message": "Party disbanded successfully"}
     
-    party_id = user.party_id
+    # Non-leader leaving
     user.party_id = None
-    
-    # Check if party is now empty, if so delete it
-    party_result = await db.execute(select(models.Party).where(models.Party.id == party_id))
-    party = party_result.scalars().first()
+    manager.remove_from_party(current_user_id, party_id)
     
     await db.commit()
     
-    # If leader leaves, and there are others, we should probably reassign leader or disband. 
-    # For now, just disband if empty.
+    # Notify remaining party members
+    await websocket_notifications.notify_party_member_removed(
+        manager,
+        party_id,
+        current_user_id,
+        "left"
+    )
+    
+    # Check if party is now empty, if so delete it
     if party:
         members_result = await db.execute(select(models.User).where(models.User.party_id == party_id))
         members = members_result.scalars().all()
@@ -252,9 +272,21 @@ async def remove_party_member(member_id: str, current_user_id: str = Depends(aut
     if member.id == party.leader_id:
         raise HTTPException(status_code=400, detail="Leader cannot be removed here")
 
+    party_id = party.id
     member.party_id = None
+    
+    manager = get_manager()
+    manager.remove_from_party(member_id, party_id)
 
     await db.commit()
+    
+    # Notify member they were kicked and notify party
+    await websocket_notifications.notify_party_member_removed(
+        manager,
+        party_id,
+        member_id,
+        "kicked"
+    )
 
     remaining_result = await db.execute(select(models.User).where(models.User.party_id == party.id))
     remaining_members = remaining_result.scalars().all()
@@ -280,10 +312,16 @@ async def disband_party(current_user_id: str = Depends(auth.get_current_user_id)
         await db.commit()
         return {"message": "Party already removed"}
 
+    manager = get_manager()
+    
+    # Notify all members before disbanding
+    await websocket_notifications.notify_party_disbanded(manager, party_id)
+
     members_result = await db.execute(select(models.User).where(models.User.party_id == party_id))
     members = members_result.scalars().all()
     for member in members:
         member.party_id = None
+        manager.remove_from_party(member.id, party_id)
 
     requests_result = await db.execute(select(models.PartyRequest).where(models.PartyRequest.party_id == party_id))
     requests = requests_result.scalars().all()
@@ -297,6 +335,8 @@ async def disband_party(current_user_id: str = Depends(auth.get_current_user_id)
 
 @router.post("/requests", response_model=schemas.PartyRequestResponse)
 async def create_request(request_in: schemas.PartyRequestCreate, current_user_id: str = Depends(auth.get_current_user_id), db: AsyncSession = Depends(get_db)):
+    from sqlalchemy.orm import selectinload
+    
     db_request = models.PartyRequest(
         type=request_in.type,
         sender_id=current_user_id,
@@ -306,7 +346,48 @@ async def create_request(request_in: schemas.PartyRequestCreate, current_user_id
     db.add(db_request)
     await db.commit()
     await db.refresh(db_request)
-    # TODO: send websocket notification to receiver
+    
+    # Get sender data for notification
+    sender_result = await db.execute(
+        select(models.User).where(models.User.id == current_user_id)
+    )
+    sender = sender_result.scalars().first()
+    
+    if sender:
+        sender_data = {
+            "id": sender.id,
+            "username": sender.username,
+            "rank": sender.rank,
+            "mood": sender.mood.value if sender.mood else None,
+            "agent_priority": sender.agent_priority or []
+        }
+        
+        # Send WebSocket notification
+        manager = get_manager()
+        
+        if db_request.type == models.RequestType.JOIN:
+            # Notify party leader
+            party_result = await db.execute(select(models.Party).where(models.Party.id == db_request.party_id))
+            party = party_result.scalars().first()
+            if party:
+                await websocket_notifications.notify_request_created(
+                    manager,
+                    db_request.id,
+                    "join",
+                    sender_data,
+                    receiver_id=party.leader_id,
+                    party_id=db_request.party_id
+                )
+        elif db_request.type == models.RequestType.INVITE:
+            # Notify receiver
+            await websocket_notifications.notify_request_created(
+                manager,
+                db_request.id,
+                "invite",
+                sender_data,
+                receiver_id=db_request.receiver_id
+            )
+    
     return db_request
 
 @router.get("/requests/incoming", response_model=List[schemas.PartyRequestResponse])
@@ -339,6 +420,8 @@ async def respond_to_request(request_id: int, accept: bool, current_user_id: str
         
     db_request.status = models.RequestStatus.ACCEPTED if accept else models.RequestStatus.REJECTED
     
+    manager = get_manager()
+    
     if accept:
         if db_request.type == models.RequestType.JOIN:
             # Add sender to party
@@ -346,6 +429,33 @@ async def respond_to_request(request_id: int, accept: bool, current_user_id: str
             sender = sender_res.scalars().first()
             if sender:
                 sender.party_id = db_request.party_id
+                
+                # Track in ConnectionManager
+                manager.add_to_party(sender.id, db_request.party_id)
+                
+                # Notify sender their request was accepted
+                await websocket_notifications.notify_request_responded(
+                    manager,
+                    db_request.id,
+                    "accepted",
+                    "join",
+                    db_request.sender_id
+                )
+                
+                # Notify all party members of new member
+                sender_data = {
+                    "id": sender.id,
+                    "username": sender.username,
+                    "rank": sender.rank,
+                    "mood": sender.mood.value if sender.mood else None,
+                    "agent_priority": sender.agent_priority or []
+                }
+                await websocket_notifications.notify_party_member_added(
+                    manager,
+                    db_request.party_id,
+                    sender_data
+                )
+                
         elif db_request.type == models.RequestType.INVITE:
             # Add receiver to sender's party
             receiver_res = await db.execute(select(models.User).where(models.User.id == db_request.receiver_id))
@@ -355,7 +465,41 @@ async def respond_to_request(request_id: int, accept: bool, current_user_id: str
                 sender = sender_res.scalars().first()
                 if sender and sender.party_id:
                     receiver.party_id = sender.party_id
+                    
+                    # Track in ConnectionManager
+                    manager.add_to_party(receiver.id, sender.party_id)
+                    
+                    # Notify sender their invite was accepted
+                    await websocket_notifications.notify_request_responded(
+                        manager,
+                        db_request.id,
+                        "accepted",
+                        "invite",
+                        db_request.sender_id
+                    )
+                    
+                    # Notify all party members of new member
+                    receiver_data = {
+                        "id": receiver.id,
+                        "username": receiver.username,
+                        "rank": receiver.rank,
+                        "mood": receiver.mood.value if receiver.mood else None,
+                        "agent_priority": receiver.agent_priority or []
+                    }
+                    await websocket_notifications.notify_party_member_added(
+                        manager,
+                        sender.party_id,
+                        receiver_data
+                    )
+    else:
+        # Request rejected - just notify sender
+        await websocket_notifications.notify_request_responded(
+            manager,
+            db_request.id,
+            "rejected",
+            db_request.type.value,
+            db_request.sender_id
+        )
                 
     await db.commit()
-    # TODO: send websocket notification to other party
     return {"message": "Request processed"}

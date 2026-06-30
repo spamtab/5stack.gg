@@ -4,9 +4,11 @@ import { useAuthStore } from '../stores/authStore'
 import { useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
 import { apiUrl } from '../config/api'
+import { useWebSocket } from '../composables/useWebSocket'
 
 const authStore = useAuthStore()
 const router = useRouter()
+const { isConnected, on, reconnectAttempts } = useWebSocket()
 
 // Constants
 const ranks = ['Iron 1', 'Iron 2', 'Iron 3', 'Bronze 1', 'Bronze 2', 'Bronze 3', 'Silver 1', 'Silver 2', 'Silver 3', 'Gold 1', 'Gold 2', 'Gold 3', 'Platinum 1', 'Platinum 2', 'Platinum 3', 'Diamond 1', 'Diamond 2', 'Diamond 3', 'Ascendant 1', 'Ascendant 2', 'Ascendant 3', 'Immortal 1', 'Immortal 2', 'Immortal 3', 'Radiant']
@@ -42,7 +44,6 @@ const individualPlayers = ref<any[]>([])
 const partiesList = ref<any[]>([])
 const incomingRequests = ref<any[]>([])
 const currentParty = ref<any | null>(null)
-let refreshTimer: number | undefined
 
 // Sidebar state
 const sidebarOpen = ref(false)
@@ -136,7 +137,7 @@ onMounted(async () => {
     await fetchMyParty()
   }
 
-  // Always load incoming requests on mount so the sidebar badge is accurate
+  // Initial load of incoming requests for sidebar badge
   await fetchIncomingRequests()
 
   // Auto-save whenever rank or mood dropdown changes
@@ -144,15 +145,90 @@ onMounted(async () => {
     if (currentMode.value === 'none') savePreferencesQuiet()
   })
 
-  refreshTimer = window.setInterval(() => {
-    refreshDashboardState()
-  }, 5000)
+  // ✅ WebSocket event handlers - real-time notifications
+  on('request_created', (data) => {
+    console.log('[WS] New request:', data)
+    // Add new request to incoming list
+    if (!incomingRequests.value.find((req: any) => req.id === data.id)) {
+      incomingRequests.value.push(data)
+    }
+  })
+
+  on('request_responded', (data) => {
+    console.log('[WS] Request responded:', data)
+    if (data.status === 'accepted') {
+      // Refresh party state when request accepted
+      fetchMyParty()
+      if (currentMode.value === 'create') {
+        fetchIndividualPlayers()
+      }
+    }
+    // Remove from pending requests
+    incomingRequests.value = incomingRequests.value.filter(
+      (req: any) => req.id !== data.id
+    )
+  })
+
+  on('party_member_added', (data) => {
+    console.log('[WS] Party member added:', data)
+    if (currentParty.value?.id === data.party_id) {
+      // Check if member already exists
+      const exists = currentParty.value.members.some((m: any) => m.id === data.member.id)
+      if (!exists) {
+        currentParty.value.members.push(data.member)
+      }
+      // Remove from individual players if in create mode
+      if (currentMode.value === 'create') {
+        individualPlayers.value = individualPlayers.value.filter(
+          (p: any) => p.id !== data.member.id
+        )
+      }
+    }
+  })
+
+  on('party_member_removed', (data) => {
+    console.log('[WS] Party member removed:', data)
+    if (currentParty.value?.id === data.party_id) {
+      currentParty.value.members = currentParty.value.members.filter(
+        (m: any) => m.id !== data.member_id
+      )
+    }
+    // If I was removed, clear my party state
+    if (data.member_id === authStore.backendUser?.id) {
+      currentParty.value = null
+      currentMode.value = 'none'
+      fetchUserData() // Refresh to update party_id
+    }
+  })
+
+  on('party_disbanded', (data) => {
+    console.log('[WS] Party disbanded:', data)
+    if (currentParty.value?.id === data.party_id) {
+      currentParty.value = null
+      currentMode.value = 'none'
+      fetchUserData() // Refresh to update party_id
+    }
+  })
+
+  on('player_status_changed', (data) => {
+    console.log('[WS] Player status changed:', data)
+    const player = individualPlayers.value.find((p: any) => p.id === data.user_id)
+    if (player) {
+      if (!data.looking_for_party) {
+        // Remove player from list if no longer looking
+        individualPlayers.value = individualPlayers.value.filter(
+          (p: any) => p.id !== data.user_id
+        )
+      }
+    } else if (data.looking_for_party && currentMode.value === 'create') {
+      // Refetch to add new player
+      fetchIndividualPlayers()
+    }
+  })
 })
 
 onBeforeUnmount(() => {
-  if (refreshTimer) {
-    window.clearInterval(refreshTimer)
-  }
+  // Cleanup handled by useWebSocket composable
 })
 
 const fetchUserData = async () => {
@@ -184,26 +260,11 @@ const refreshCurrentViews = async () => {
   if (currentMode.value === 'search') {
     await fetchParties()
   }
-  if (currentMode.value !== 'none') {
-    await fetchIncomingRequests()
-  }
 }
 
 const refreshPartyAndUser = async () => {
   await fetchUserData()
   await fetchMyParty()
-}
-
-const refreshDashboardState = async () => {
-  await fetchUserData()
-  await fetchMyParty()
-  await fetchIncomingRequests()  // always — keeps sidebar badge live
-  if (currentMode.value === 'search') {
-    await fetchParties()
-  }
-  if (currentMode.value === 'create') {
-    await fetchIndividualPlayers()
-  }
 }
 
 const savePreferences = async () => {
@@ -332,7 +393,7 @@ const toggleSearchParty = async () => {
   await setLookingForParty(true)
   currentMode.value = 'search';
   isLoading.value = false;
-  await refreshDashboardState()
+  await refreshPartyAndUser()
   fetchParties();
 }
 
@@ -367,7 +428,7 @@ const leaveCurrentParty = async () => {
     })
     if (response.ok) {
       await setLookingForParty(false)
-      await refreshDashboardState()
+      await refreshPartyAndUser()
       currentMode.value = 'none'
     }
   } catch (e) {
@@ -384,7 +445,7 @@ const removePartyMember = async (memberId: string) => {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (response.ok) {
-      await refreshDashboardState()
+      await refreshPartyAndUser()
       await fetchIndividualPlayers()
     }
   } catch (e) {
@@ -449,7 +510,6 @@ const sendJoinRequest = async (party: any) => {
     })
     if (response.ok) {
       sentJoinPartyIds.value = new Set([...sentJoinPartyIds.value, String(party.id)])
-      await fetchIncomingRequests()
     }
   } catch (e) {
     console.error('sendJoinRequest error:', e)
@@ -470,7 +530,6 @@ const sendInviteRequest = async (player: any) => {
     })
     if (response.ok) {
       sentInvitePlayerIds.value = new Set([...sentInvitePlayerIds.value, String(player.id)])
-      await fetchIncomingRequests()
     }
   } catch (e) {
     console.error('sendInviteRequest error:', e)
@@ -486,9 +545,12 @@ const respondToIncomingRequest = async (request: any, accept: boolean) => {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (response.ok) {
-      await fetchIncomingRequests()
-      await refreshPartyAndUser()
-      await refreshCurrentViews()
+      // WebSocket will handle real-time updates, just clean up local state
+      incomingRequests.value = incomingRequests.value.filter((req: any) => req.id !== request.id)
+      if (accept) {
+        await refreshPartyAndUser()
+        await refreshCurrentViews()
+      }
     }
   } catch (e) {
     console.error('respondToIncomingRequest error:', e)
@@ -548,6 +610,14 @@ watch(currentMode, async (mode, previousMode) => {
 
 <template>
   <div class="dashboard">
+    <!-- Reconnecting Banner -->
+    <transition name="banner-slide">
+      <div v-if="!isConnected" class="reconnecting-banner">
+        <div class="spinner"></div>
+        <span>Reconnecting to server... (Attempt {{ reconnectAttempts }})</span>
+      </div>
+    </transition>
+
     <!-- Requests Sidebar Toggle Button -->
     <button
       class="sidebar-toggle"
@@ -977,6 +1047,54 @@ watch(currentMode, async (mode, previousMode) => {
   color: var(--riot-red);
   border-color: var(--riot-red);
   background: var(--riot-red-dim);
+}
+
+/* ── Reconnecting Banner ── */
+.reconnecting-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 400;
+  background: linear-gradient(135deg, #c92a2a 0%, #a61e1e 100%);
+  color: #fff;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  box-shadow: 0 2px 16px rgba(201, 42, 42, 0.4);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.banner-slide-enter-active,
+.banner-slide-leave-active {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.banner-slide-enter-from {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+
+.banner-slide-leave-to {
+  transform: translateY(-100%);
+  opacity: 0;
 }
 
 /* Layout panels */
