@@ -126,6 +126,24 @@ const filteredIndividualPlayers = computed(() => {
   })
 })
 
+// Available agents = all agents not in priority list
+const availableAgents = computed(() => {
+  return initialAgents.filter(agent => !agentPriority.value.includes(agent))
+})
+
+const addAgentToPriority = (agent: string) => {
+  if (!agentPriority.value.includes(agent)) {
+    agentPriority.value.push(agent)
+  }
+}
+
+const removeAgentFromPriority = (agent: string) => {
+  const index = agentPriority.value.indexOf(agent)
+  if (index > -1) {
+    agentPriority.value.splice(index, 1)
+  }
+}
+
 onMounted(async () => {
   // If App.vue already loaded the profile into the store, we're done.
   // Only re-fetch if the store is empty (e.g., hard refresh on MainView directly).
@@ -732,19 +750,57 @@ watch(currentMode, async (mode, previousMode) => {
           </div>
           
           <div class="pref-item agent-priority-section">
-            <label class="field-label">Agent Priority <span class="field-hint">Drag to reorder</span></label>
-            <div class="agent-list-scroll-wrap mt-2">
-              <draggable v-model="agentPriority" item-key="agent" class="agent-list-vertical" :disabled="currentMode !== 'none'">
-                <template #item="{element, index}">
-                  <div class="agent-badge-vertical">
-                    <span class="agent-badge-rank">{{ index + 1 }}</span>
-                    <img v-if="getAgentIcon(element)" :src="getAgentIcon(element)" :alt="element" class="agent-badge-icon" />
-                    <span v-else class="agent-badge-icon agent-badge-icon--placeholder"></span>
-                    <span class="agent-badge-name">{{ element }}</span>
-                    <span class="drag-handle">⠿</span>
-                  </div>
-                </template>
-              </draggable>
+            <label class="field-label">Agent Priority <span class="field-hint">Click to add • Drag to reorder • Click X to remove</span></label>
+            <div class="agent-priority-container mt-2">
+              <!-- Selected Priority List -->
+              <div class="priority-selected-wrap">
+                <div class="priority-label">Your Top 5</div>
+                <draggable 
+                  v-model="agentPriority" 
+                  item-key="agent" 
+                  class="agent-list-vertical" 
+                  :disabled="currentMode !== 'none'"
+                  group="agents"
+                >
+                  <template #item="{element, index}">
+                    <div class="agent-badge-vertical agent-badge-selected">
+                      <span class="agent-badge-rank">{{ index + 1 }}</span>
+                      <img v-if="getAgentIcon(element)" :src="getAgentIcon(element)" :alt="element" class="agent-badge-icon" />
+                      <span v-else class="agent-badge-icon agent-badge-icon--placeholder"></span>
+                      <span class="agent-badge-name">{{ element }}</span>
+                      <button 
+                        v-if="currentMode === 'none'" 
+                        class="agent-remove-btn" 
+                        @click="removeAgentFromPriority(element)"
+                        title="Remove from priority"
+                      >✕</button>
+                      <span v-else class="drag-handle">⠿</span>
+                    </div>
+                  </template>
+                </draggable>
+                <div v-if="agentPriority.length === 0" class="empty-priority-hint">
+                  Click agents to add them →
+                </div>
+              </div>
+
+              <!-- Available Agents Pool -->
+              <div class="priority-available-wrap">
+                <div class="priority-label">Available Agents</div>
+                <div class="agent-grid">
+                  <button
+                    v-for="agent in availableAgents"
+                    :key="agent"
+                    class="agent-chip"
+                    @click="addAgentToPriority(agent)"
+                    :disabled="currentMode !== 'none'"
+                    :title="`Add ${agent} to priority`"
+                  >
+                    <img v-if="getAgentIcon(agent)" :src="getAgentIcon(agent)" :alt="agent" class="agent-chip-icon" />
+                    <span v-else class="agent-chip-icon agent-chip-icon--placeholder"></span>
+                    <span class="agent-chip-name">{{ agent }}</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1134,6 +1190,181 @@ watch(currentMode, async (mode, previousMode) => {
   filter: grayscale(0.3);
 }
 
+/* ── Agent Priority Two-Column Layout ── */
+.agent-priority-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  min-height: 340px;
+}
+
+.priority-selected-wrap,
+.priority-available-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.priority-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--riot-red);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.priority-selected-wrap {
+  border-right: 1px solid var(--glass-border);
+  padding-right: 12px;
+}
+
+.priority-available-wrap {
+  padding-left: 4px;
+  max-height: 340px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--riot-red-dim) transparent;
+}
+
+.priority-available-wrap::-webkit-scrollbar {
+  width: 4px;
+}
+
+.priority-available-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.priority-available-wrap::-webkit-scrollbar-thumb {
+  background: var(--riot-red-dim);
+  border-radius: 2px;
+}
+
+.empty-priority-hint {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  padding: 20px;
+  font-style: italic;
+}
+
+/* Agent Grid (Available Agents) */
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 6px;
+}
+
+.agent-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 6px;
+  background: var(--dark-elevated);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  color: var(--text-secondary);
+}
+
+.agent-chip:hover:not(:disabled) {
+  border-color: var(--riot-red);
+  background: var(--riot-red-dim);
+  color: var(--text-primary);
+  transform: translateY(-2px);
+}
+
+.agent-chip:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.agent-chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.agent-chip-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.agent-chip-icon--placeholder {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px dashed var(--glass-border);
+  border-radius: 2px;
+}
+
+.agent-chip-name {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* Selected Agents List */
+.agent-list-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 60px;
+}
+
+.agent-badge-vertical {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--dark-elevated);
+  border: 1px solid var(--glass-border);
+  cursor: grab;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.agent-badge-selected {
+  border-color: rgba(255, 70, 85, 0.3);
+  background: linear-gradient(135deg, rgba(255, 70, 85, 0.1) 0%, var(--dark-elevated) 100%);
+}
+
+.agent-badge-vertical:hover {
+  border-color: var(--riot-red);
+  background: var(--riot-red-dim);
+}
+
+.agent-badge-vertical:active {
+  cursor: grabbing;
+}
+
+.agent-remove-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 2px 6px;
+  margin-left: auto;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.agent-remove-btn:hover {
+  color: var(--riot-red);
+  background: rgba(255, 70, 85, 0.1);
+}
+
 .agent-list-scroll-wrap {
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid var(--glass-border);
@@ -1155,36 +1386,6 @@ watch(currentMode, async (mode, previousMode) => {
 .agent-list-scroll-wrap::-webkit-scrollbar-thumb {
   background: var(--riot-red-dim);
   border-radius: 2px;
-}
-
-.agent-list-vertical {
-  display: flex;
-  flex-direction: column;
-  padding: 8px;
-  gap: 4px;
-  min-height: 60px;
-}
-
-.agent-badge-vertical {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 12px;
-  border-radius: var(--radius-sm);
-  background: var(--dark-elevated);
-  border: 1px solid var(--glass-border);
-  cursor: grab;
-  transition: all var(--transition-fast);
-  user-select: none;
-}
-
-.agent-badge-vertical:hover {
-  border-color: var(--riot-red);
-  background: var(--riot-red-dim);
-}
-
-.agent-badge-vertical:active {
-  cursor: grabbing;
 }
 
 .agent-badge-rank {
@@ -1223,6 +1424,7 @@ watch(currentMode, async (mode, previousMode) => {
   font-size: 1rem;
   flex-shrink: 0;
   letter-spacing: -2px;
+  margin-left: auto;
 }
 
 .save-row {
@@ -1645,6 +1847,22 @@ watch(currentMode, async (mode, previousMode) => {
 @media (max-width: 900px) {
   .preferences-grid {
     grid-template-columns: 1fr;
+  }
+
+  .agent-priority-container {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .priority-selected-wrap {
+    border-right: none;
+    border-bottom: 1px solid var(--glass-border);
+    padding-right: 0;
+    padding-bottom: 12px;
+  }
+
+  .priority-available-wrap {
+    padding-left: 0;
   }
 
   .actions-section {
